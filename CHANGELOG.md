@@ -29,6 +29,19 @@ All notable changes to this package are documented here. The format follows
 
 ### Fixed
 
+- Built against SDK 0.2.0 with DTOs mapped to the API's real response shapes and
+  `Customers::create()`; the README now creates customers with
+  `Aslan::customers()->create(...)` instead of the `@internal` raw request.
+- Documentation re-verified against the current API: the one-time payment example no
+  longer stores `$session->transactionId` from `create()` (always null) nor sends
+  `reference` / `description` (dropped by the API); it matches the order through
+  `metadata`. Trials (refunded verification charge, first charge at trial end,
+  trial-end failure goes to `past_due`), billing anchor day and catch-up re-anchoring,
+  price-override window, plan changes in a trial, `subscription.plan_changed`
+  `effectiveAt` (current period end for `period_end`, not null), `subscription.renewed`
+  metadata, `payment.succeeded` for verification charges, error codes
+  (`VALIDATION_ERROR` is 400, `PSP_ERROR`, meaning of `409`), and the activation race
+  (`retrieve()` may still say `pending_initial`) are corrected.
 - Documentation: the 0.1.0 README sent customers to the Paywall with
   `redirect()->away($result->redirectUrl)` (does not work) and called
   `cancel($id, ['atPeriodEnd' => true])` (the argument is a bool).

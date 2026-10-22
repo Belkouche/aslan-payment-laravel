@@ -21,7 +21,7 @@ Instructions for AI coding agents (Claude Code, Copilot, Cursor, Codex, ...) wri
 5. Webhooks are the source of truth. Change payment/subscription state only in listeners of `Aslan\Laravel\Events\*`, never in `successUrl` / `returnUrl` controllers.
 6. Do not write signature verification code; the package does it on the raw body. Do not put the webhook route behind `web`, CSRF, session, or `auth`.
 7. Listeners implement `ShouldQueue` and dedupe on `$event->id()` (e.g. `DB::table('aslan_webhook_events')->insertOrIgnore([...]) === 0` means already processed).
-8. Store `$checkout->subscriptionId` and `$checkout->transactionId` before returning the Paywall response. `subscriptions()->create()` has no idempotency key: guard double submission yourself.
+8. Create the customer with `Aslan::customers()->create(['email' => ..., 'name' => ..., 'phone' => '+212XXXXXXXXX'])` (email or phone required; 409 `CONFLICT` on a duplicate email) and store its id; customers cannot be searched by email (encrypted). Store `$checkout->subscriptionId` and `$checkout->transactionId` before returning the Paywall response. `subscriptions()->create()` has no idempotency key: guard double submission yourself.
 9. `returnUrl`, `cancelUrl`, `callbackUrl` are required for `subscriptions()->create()`, `changeCard()`, `repay()` and must be `https://`.
 10. Immediate `cancel($id)`, `cancel($id, atPeriodEnd: true)`, `uncancel()`, `pause()`, `resume()` send no webhook for that change: update local state from the returned `SubscriptionStatusChange`.
 11. `$event->subscription()` is a partial `Aslan\Payment\Dto\Subscription` (always `id`; `status` usually null). Use `Aslan::subscriptions()->retrieve($id)` for authoritative state.
@@ -29,16 +29,20 @@ Instructions for AI coding agents (Claude Code, Copilot, Cursor, Codex, ...) wri
 13. Catch `Aslan\Payment\AslanException`: `getErrorCode()` (string), `getCode()` (HTTP int), `requestId`. There is no `$e->code`.
 14. Never log `ASLAN_API_KEY`, `ASLAN_WEBHOOK_SECRET`, `signingSecret`, `$checkout->paywall`, or raw webhook headers.
 15. Default to `sk_test_` keys unless the user explicitly asks for live.
+16. Trials: signup charges only a refunded verification amount (1.00 MAD by default); status `trialing` until `trialEndsAt`, where the first real charge is made and reported as `SubscriptionRenewed` (with the subscription `metadata`). A failed trial-end charge goes to `past_due` at once, then retries after 2, 5, 7 days. A `PaymentSucceeded` whose `data.transaction.metadata` has `__trialVerification` or `__changeCard` = true is a refunded card check, not a sale.
+17. Billing facts: dunning retries after 2, 5 and 7 days (3rd failure = `past_due`, 4th = cancelled, reason `dunning`); month-based plans renew on a fixed UTC anchor day clamped to month end; a late catch-up charge restarts the period instead of billing missed ones; `priceOverride` applies to every period starting on or before `priceOverrideUntil`; `subscription.plan_changed` is sent on acceptance with `effectiveAt` = now or the current period end; plan changes in a trial never charge.
+18. Checkout `create()` returns no transaction id and ignores unknown fields (`reference`, `description`): put `order_id` in `metadata` and match it in `PaymentSucceeded`. In the activation listener, `retrieve()` can still say `pending_initial` for a moment: release the job and retry.
 
 ## Intent to call
 
 | Intent | Code |
 |---|---|
-| One-time payment | `$s = Aslan::checkoutSessions()->create(['amount' => 14900, 'currency' => 'MAD', 'reference' => ..., 'successUrl' => ..., 'cancelUrl' => ..., 'metadata' => [...]], idempotencyKey: ...);` store `$s->transactionId`; `return redirect()->away($s->url);` |
-| Order paid | Listener `handle(PaymentSucceeded $e)`, match `$e->data()['transaction']['id']` |
+| One-time payment | `$s = Aslan::checkoutSessions()->create(['amount' => 14900, 'currency' => 'MAD', 'successUrl' => ..., 'cancelUrl' => ..., 'metadata' => ['order_id' => ...]], idempotencyKey: ...);` store `$s->id`; `return redirect()->away($s->url);` |
+| Order paid | Listener `handle(PaymentSucceeded $e)`, match `$e->data()['transaction']['metadata']['order_id']` |
+| Create customer | `$c = Aslan::customers()->create(['email' => ..., 'name' => ...]);` store `$c->id` (409 = exists) |
 | Refund | `Aslan::refunds()->create(['transactionId' => ..., 'amount' => ...], idempotencyKey: ...)` |
 | Create plan (once) | `Aslan::plans()->create(['name' => ..., 'amount' => 9900, 'currency' => 'MAD', 'interval' => 'monthly'])` |
-| Start subscription | `$c = Aslan::subscriptions()->create([...])`; save ids; `return Aslan::paywall($c);` |
+| Start subscription | customer id from `Aslan::customers()->create()`; `$c = Aslan::subscriptions()->create([...])`; save ids; `return Aslan::paywall($c);` |
 | Activate | Listener on `PaymentSucceeded` matching the stored initial transaction id, then `retrieve()` |
 | Renewal | Listener on `SubscriptionRenewed`: `$e->subscription()->currentPeriodEnd`, `$e->data()['transaction']['amount']` |
 | Failed renewal | `SubscriptionPaymentFailed`, `SubscriptionPastDue`: notify, offer `changeCard()` |
@@ -67,6 +71,9 @@ Instructions for AI coding agents (Claude Code, Copilot, Cursor, Codex, ...) wri
 - Webhook route in `routes/web.php`, behind CSRF, session, or `auth`.
 - Synchronous, non-idempotent listeners.
 - `cancel($id, ['atPeriodEnd' => true])` (the argument is a bool).
+- `Aslan::client()->request('POST', '/api/v1/customers', ...)` (use `Aslan::customers()->create()`), or `customers()->list(['search' => $email])` to find a customer.
+- Booking a verification `PaymentSucceeded` (`__trialVerification` / `__changeCard`) as revenue.
+- Sending `reference` / `description` to `checkoutSessions()->create()` or storing `$session->transactionId` from `create()` (always null).
 
 ## Working on this package
 
