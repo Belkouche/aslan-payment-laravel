@@ -4,7 +4,15 @@
     "type": "library",
     "license": "MIT",
     "version": "0.2.0",
-    "keywords": ["aslan", "payment", "laravel", "subscriptions", "webhooks", "morocco", "mad"],
+    "keywords": [
+        "aslan",
+        "payment",
+        "laravel",
+        "subscriptions",
+        "webhooks",
+        "morocco",
+        "mad"
+    ],
     "homepage": "https://aslanpay.ma",
     "authors": [
         {
@@ -27,11 +35,8 @@
     },
     "repositories": [
         {
-            "type": "path",
-            "url": "/private/tmp/claude-501/-Users-belkouche-Projects-aslan/e63212d6-a04f-475a-81e3-248eeb0abbfb/scratchpad/php-sdk",
-            "options": {
-                "symlink": true
-            }
+            "type": "vcs",
+            "url": "https://github.com/Belkouche/aslan-payment-php-symfony"
         }
     ],
     "autoload": {
