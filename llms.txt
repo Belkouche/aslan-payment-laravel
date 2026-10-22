@@ -1,0 +1,15 @@
+# aslan/payment-laravel
+
+> Laravel 12/13 integration for the Aslan Payment API (Morocco, MAD): a configured SDK client and `Aslan` facade, `Aslan::paywall()` for the subscription Paywall (HTML form POST, not a redirect), and a signature-verified webhook route that dispatches typed Laravel events. Amounts are integer centimes. Requires PHP ~8.2.35 || ~8.3.36 || ~8.4.27 || >=8.5.12.
+
+Agents: read AGENTS.md first; it contains the rules, the intent-to-call table, and the anti-patterns.
+
+## Docs
+
+- [AGENTS.md](AGENTS.md): rules and canonical calls for AI coding agents
+- [README.md](README.md): full guide (installation, one-time payments, subscriptions, webhooks, testing, configuration, events)
+- [CHANGELOG.md](CHANGELOG.md): release notes
+
+## Related
+
+- [aslan/payment-php SDK](https://github.com/Belkouche/aslan-payment-php-symfony): the underlying PHP SDK and its DTO reference

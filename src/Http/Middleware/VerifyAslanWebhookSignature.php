@@ -16,6 +16,15 @@ use Symfony\Component\HttpFoundation\Response;
  * where hmac = HMAC-SHA256("<t>.<rawBody>", webhook secret). Signatures are
  * compared in constant time and deliveries outside the tolerance window
  * (past or future) are rejected.
+ *
+ * Why not delegate to the SDK's Webhooks::constructEvent()? Same scheme, but
+ * not behaviour-identical, and this check is the security boundary:
+ *  - the SDK casts `t` with (int), so "t=1761130000abc" or "t=+1761130000"
+ *    pass; here `t` must be digits only;
+ *  - the SDK throws a plain JsonException (not AslanException) when a validly
+ *    signed body is not JSON, which would surface as a 500 instead of a 400.
+ * Tolerance semantics (abs(now - t) > tolerance, 0 disables) and the
+ * constant-time comparison against every v1 value are the same.
  */
 final class VerifyAslanWebhookSignature
 {

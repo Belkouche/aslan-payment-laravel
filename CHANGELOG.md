@@ -4,6 +4,35 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-10-22
+
+### Added
+
+- `Aslan::paywall(SubscriptionCheckout $checkout)`: returns a 200 HTML response
+  (`Cache-Control: no-store`) that auto-submits the Paywall form POST. The Paywall
+  rejects a plain redirect to `redirectUrl`.
+- `AslanWebhookEvent::subscription()`: the SDK `Subscription` DTO (partial) for
+  `subscription.*` events, `null` otherwise.
+- `AGENTS.md` and `llms.txt` for AI coding agents.
+- Tests for the remaining signature rejection cases (missing `t`, missing/empty `v1`,
+  non-digit `t`, unknown scheme), multiple `v1` values, `tolerance = 0`, and
+  compatibility with the SDK's `generateSignatureHeader()`.
+
+### Changed
+
+- Built against the final `aslan/payment-php` 0.2.0 (fixed `AslanException`,
+  `X-Webhook-Signature`, plans/subscriptions/billing attempts/invoices).
+- The webhook middleware stays the package's own verifier (documented in the class):
+  the SDK's verifier accepts a non-digit `t` and throws `JsonException` on a signed
+  non-JSON body.
+- README rewritten: every example now matches the real SDK methods and return types.
+
+### Fixed
+
+- Documentation: the 0.1.0 README sent customers to the Paywall with
+  `redirect()->away($result->redirectUrl)` (does not work) and called
+  `cancel($id, ['atPeriodEnd' => true])` (the argument is a bool).
+
 ## [0.1.0] - 2026-10-22
 
 ### Added

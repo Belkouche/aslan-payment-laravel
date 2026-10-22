@@ -10,7 +10,9 @@ use Aslan\Laravel\Events\SubscriptionPaymentFailed;
 use Aslan\Laravel\Events\SubscriptionRenewed;
 use Aslan\Laravel\Events\WebhookReceived;
 use Aslan\Laravel\Http\Controllers\WebhookController;
+use Aslan\Laravel\Facades\Aslan;
 use Aslan\Laravel\Tests\TestCase;
+use Aslan\Payment\Dto\Subscription;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -99,12 +101,24 @@ final class WebhookTest extends TestCase
             'expired timestamp' => [fn (string $b) => self::signStatic($b, self::WEBHOOK_SECRET, time() - 301), 401],
             'future timestamp' => [fn (string $b) => self::signStatic($b, self::WEBHOOK_SECRET, time() + 301), 401],
             'signature for another body' => [fn (string $b) => self::signStatic($b . ' ', self::WEBHOOK_SECRET, time()), 401],
+            'missing timestamp' => [fn (string $b) => 'v1=' . hash_hmac('sha256', time() . '.' . $b, self::WEBHOOK_SECRET), 401],
+            'missing v1' => [fn (string $b) => 't=' . time(), 401],
+            'empty v1' => [fn (string $b) => 't=' . time() . ',v1=', 401],
+            'non-digit timestamp suffix' => [fn (string $b) => self::signWithRawT($b, time() . 'abc', time()), 401],
+            'signed timestamp' => [fn (string $b) => self::signWithRawT($b, '+' . time(), time()), 401],
+            'v0 scheme only' => [fn (string $b) => 't=' . time() . ',v0=' . hash_hmac('sha256', time() . '.' . $b, self::WEBHOOK_SECRET), 401],
         ];
     }
 
     private static function signStatic(string $body, string $secret, int $t): string
     {
         return 't=' . $t . ',v1=' . hash_hmac('sha256', $t . '.' . $body, $secret);
+    }
+
+    /** Header whose `t` field is $rawT while the HMAC is computed over the numeric $t. */
+    private static function signWithRawT(string $body, string $rawT, int $t): string
+    {
+        return 't=' . $rawT . ',v1=' . hash_hmac('sha256', $t . '.' . $body, self::WEBHOOK_SECRET);
     }
 
     #[DataProvider('rejectedDeliveries')]
@@ -154,6 +168,74 @@ final class WebhookTest extends TestCase
         $this->send($body, $this->sign($body, t: time() - 500))->assertOk();
 
         Event::assertDispatched(PaymentSucceeded::class);
+    }
+
+    public function test_any_matching_v1_signature_is_accepted(): void
+    {
+        $body = $this->payload('payment.succeeded');
+        $t = time();
+        $header = 't=' . $t . ',v1=' . str_repeat('0', 64) . ',v1=' . hash_hmac('sha256', $t . '.' . $body, self::WEBHOOK_SECRET);
+
+        $this->send($body, $header)->assertOk();
+
+        Event::assertDispatched(PaymentSucceeded::class);
+    }
+
+    public function test_zero_tolerance_disables_the_age_check(): void
+    {
+        $this->app['config']->set('aslan.webhook.tolerance', 0);
+        $body = $this->payload('payment.succeeded');
+
+        $this->send($body, $this->sign($body, t: time() - 86400))->assertOk();
+
+        Event::assertDispatched(PaymentSucceeded::class);
+    }
+
+    public function test_sdk_signature_helper_produces_accepted_headers(): void
+    {
+        $body = $this->payload('subscription.renewed');
+
+        $this->send($body, Aslan::webhooks()->generateSignatureHeader($body))->assertOk();
+
+        Event::assertDispatched(SubscriptionRenewed::class);
+    }
+
+    public function test_subscription_accessor_hydrates_the_sdk_dto(): void
+    {
+        $body = json_encode([
+            'id' => 'evt_9',
+            'event' => 'subscription.renewed',
+            'createdAt' => '2026-10-22T10:00:00.000Z',
+            'data' => [
+                'subscription' => [
+                    'id' => 'sub_42',
+                    'planId' => 'plan_1',
+                    'currentPeriodStart' => '2026-10-22T00:00:00.000Z',
+                    'currentPeriodEnd' => '2026-11-22T00:00:00.000Z',
+                    'nextBillingAt' => '2026-11-22T00:00:00.000Z',
+                ],
+                'transaction' => ['id' => 'txn_7', 'amount' => 14900, 'currency' => 'MAD'],
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->send($body, $this->sign($body))->assertOk();
+
+        Event::assertDispatched(SubscriptionRenewed::class, function (SubscriptionRenewed $e): bool {
+            $sub = $e->subscription();
+
+            return $sub instanceof Subscription
+                && $sub->id === 'sub_42'
+                && $sub->planId === 'plan_1'
+                && $sub->currentPeriodEnd === '2026-11-22T00:00:00.000Z'
+                && $e->data()['transaction']['amount'] === 14900;
+        });
+    }
+
+    public function test_subscription_accessor_is_null_for_other_events(): void
+    {
+        $this->assertNull((new PaymentSucceeded(json_decode($this->payload('payment.succeeded'), true)))->subscription());
+        $this->assertNull((new SubscriptionRenewed(['id' => 'evt_1', 'event' => 'subscription.renewed', 'data' => []]))->subscription());
+        $this->assertSame('sub_1', (new WebhookReceived(json_decode($this->payload('subscription.cancelled'), true)))->subscription()?->id);
     }
 
     public function test_missing_webhook_secret_is_a_server_error_without_dispatch(): void

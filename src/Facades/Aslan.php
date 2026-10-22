@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Facade;
 /**
  * @method static \Aslan\Payment\Aslan client()
  * @method static \Aslan\Payment\Resources\Webhooks webhooks(?string $secret = null)
+ * @method static \Illuminate\Http\Response paywall(\Aslan\Payment\Dto\SubscriptionCheckout $checkout)
  * @method static \Aslan\Payment\Resources\CheckoutSessions checkoutSessions()
  * @method static \Aslan\Payment\Resources\Transactions transactions()
  * @method static \Aslan\Payment\Resources\PaymentLinks paymentLinks()
