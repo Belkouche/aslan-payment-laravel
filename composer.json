@@ -1,0 +1,65 @@
+{
+    "name": "aslan/payment-laravel",
+    "description": "Laravel integration for the official Aslan Payment PHP SDK (payments, subscriptions, signed webhooks)",
+    "type": "library",
+    "license": "MIT",
+    "version": "0.1.0",
+    "keywords": ["aslan", "payment", "laravel", "subscriptions", "webhooks", "morocco", "mad"],
+    "homepage": "https://aslanpay.ma",
+    "authors": [
+        {
+            "name": "Aslan Pay",
+            "email": "dev@aslanpay.ma",
+            "homepage": "https://aslanpay.ma"
+        }
+    ],
+    "require": {
+        "php": "~8.2.35 || ~8.3.36 || ~8.4.27 || >=8.5.12",
+        "aslan/payment-php": "^0.2",
+        "illuminate/contracts": "^12.0 || ^13.0",
+        "illuminate/http": "^12.0 || ^13.0",
+        "illuminate/routing": "^12.0 || ^13.0",
+        "illuminate/support": "^12.0 || ^13.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^10.0 || ^11.0",
+        "phpunit/phpunit": "^11.5 || ^12.0"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "/private/tmp/claude-501/-Users-belkouche-Projects-aslan/e63212d6-a04f-475a-81e3-248eeb0abbfb/scratchpad/php-sdk",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Aslan\\Laravel\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Aslan\\Laravel\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Aslan\\Laravel\\AslanServiceProvider"
+            ],
+            "aliases": {
+                "Aslan": "Aslan\\Laravel\\Facades\\Aslan"
+            }
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
