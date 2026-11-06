@@ -75,7 +75,7 @@ final class WebhookTest extends TestCase
         }
 
         Event::assertDispatchedTimes(WebhookReceived::class, count(WebhookController::EVENTS));
-        $this->assertCount(13, WebhookController::EVENTS);
+        $this->assertCount(14, WebhookController::EVENTS);
     }
 
     public function test_unknown_event_dispatches_only_the_generic_event(): void
@@ -228,6 +228,31 @@ final class WebhookTest extends TestCase
                 && $sub->planId === 'plan_1'
                 && $sub->currentPeriodEnd === '2026-11-22T00:00:00.000Z'
                 && $e->data()['transaction']['amount'] === 14900;
+        });
+    }
+
+    public function test_renewal_suspended_event_exposes_reason_and_skipped_period(): void
+    {
+        $body = json_encode([
+            'id' => 'evt_rs',
+            'event' => 'subscription.renewal_suspended',
+            'createdAt' => '2026-04-01T02:00:05.000Z',
+            'data' => ['subscription' => [
+                'id' => 'sub_42',
+                'planId' => 'plan_1',
+                'reason' => 'PROVIDER_ACCOUNT_RECURRING_DISABLED',
+                'skippedPeriodStart' => '2026-04-01T00:00:00.000Z',
+                'skippedPeriodEnd' => '2026-05-01T00:00:00.000Z',
+                'nextBillingAt' => '2026-05-01T00:00:00.000Z',
+            ]],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->send($body, $this->sign($body))->assertOk();
+
+        Event::assertDispatched(\Aslan\Laravel\Events\SubscriptionRenewalSuspended::class, function (AslanWebhookEvent $e): bool {
+            return $e->subscription()?->id === 'sub_42'
+                && $e->data()['subscription']['reason'] === 'PROVIDER_ACCOUNT_RECURRING_DISABLED'
+                && $e->data()['subscription']['skippedPeriodEnd'] === '2026-05-01T00:00:00.000Z';
         });
     }
 

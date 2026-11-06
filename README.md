@@ -1090,6 +1090,7 @@ All classes are in `Aslan\Laravel\Events\` and extend `AslanWebhookEvent`. `Webh
 | `subscription.cancelled` | It ended at period end, after dunning, or abandoned in `pending_initial` (`data.subscription.cancelReason`). Not sent for your own immediate `cancel()` | `SubscriptionCancelled` | Revoke access |
 | `subscription.plan_changed` | A plan change was accepted: applied now (`effectiveAt` = now) or scheduled (`effectiveAt` = current period end) | `SubscriptionPlanChanged` | Update entitlements (`planId`, `previousPlanId`) from `effectiveAt` |
 | `subscription.plan_change_failed` | A scheduled period-end change could not be applied (target plan archived); it renewed on the old plan | `SubscriptionPlanChangeFailed` | Keep the old entitlements, tell the customer / fix the plan |
+| `subscription.renewal_suspended` | A renewal was skipped because the subscription's PSP account no longer allows recurring payments; nothing was charged and the period is never charged later (`data.subscription`: `id`, `planId`, `reason`, `skippedPeriodStart`, `skippedPeriodEnd`, `nextBillingAt`; status unchanged, no dunning) | `SubscriptionRenewalSuspended` | Tell the customer, or re-enable recurring on the account |
 
 Event names such as `checkout_session.completed` or `transaction.captured` **do not exist**.
 
