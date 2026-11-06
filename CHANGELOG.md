@@ -4,6 +4,13 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `subscription.renewal_suspended` webhook event, dispatched as
+  `Aslan\Laravel\Events\SubscriptionRenewalSuspended`.
+
 ## [0.2.0] - 2026-10-22
 
 ### Added

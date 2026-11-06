@@ -31,6 +31,7 @@ final class WebhookController
         'subscription.cancelled' => Events\SubscriptionCancelled::class,
         'subscription.plan_changed' => Events\SubscriptionPlanChanged::class,
         'subscription.plan_change_failed' => Events\SubscriptionPlanChangeFailed::class,
+        'subscription.renewal_suspended' => Events\SubscriptionRenewalSuspended::class,
     ];
 
     public function __invoke(Request $request, Dispatcher $events): JsonResponse
